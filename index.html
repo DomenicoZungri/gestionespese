@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Budget App Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #F2F2F7;
+            --card: #FFFFFF;
+            --text: #1C1C1E;
+            --red: #FF3B30;
+            --green: #34C759;
+            --blue: #007AFF;
+            --gray: #8E8E93;
+            --border: #E5E5EA;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            /* Spazio necessario per il footer fisso (Firma + Mesi) */
+            padding-bottom: 160px; 
+        }
+
+        /* --- BILANCIO --- */
+        .balance-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .balance-label { font-size: 13px; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .balance-amount { font-size: 40px; font-weight: 800; margin: 10px 0; letter-spacing: -1px; }
+        .balance-details { display: flex; justify-content: space-around; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); }
+        .detail-item { font-size: 14px; display: flex; flex-direction: column; gap: 5px;}
+        .income-text { color: var(--green); font-weight: 700; font-size: 18px; }
+        .expense-text { color: var(--red); font-weight: 700; font-size: 18px; }
+
+        /* --- GRAFICO --- */
+        .chart-container {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            height: 260px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            position: relative;
+        }
+        .chart-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; text-align: center; }
+
+        /* --- FORM INSERIMENTO --- */
+        .input-group {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 24px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        }
+
+        .type-toggle {
+            display: flex;
+            margin-bottom: 15px;
+            background: #E5E5EA;
+            border-radius: 12px;
+            padding: 4px;
+        }
+        .toggle-btn {
+            flex: 1;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            background: transparent;
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .toggle-btn.active-expense { background: var(--card); color: var(--red); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .toggle-btn.active-income { background: var(--card); color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+        select, input {
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            font-size: 16px;
+            background: #FAFAFA;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--blue); background: #fff; }
+
+        button#add-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 700;
+            color: white;
+            margin-top: 5px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        button#add-btn:active { transform: scale(0.98); }
+        button#add-btn.btn-red { background: var(--red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3); }
+        button#add-btn.btn-green { background: var(--green); box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); }
+
+        /* --- LISTA MOVIMENTI --- */
+        .section-title { margin-left: 10px; font-size: 20px; font-weight: 700; margin-bottom: 15px; color: var(--text); }
+        
+        .transaction-item {
+            background: var(--card);
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .trans-left { display: flex; align-items: center; flex: 1; overflow: hidden; }
+        .trans-icon { 
+            font-size: 24px; width: 48px; height: 48px; background: #F2F2F7; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            margin-right: 15px; flex-shrink: 0;
+        }
+        .trans-info { display: flex; flex-direction: column; overflow: hidden; }
+        .trans-cat { font-weight: 600; font-size: 16px; color: var(--text); }
+        .trans-note { font-size: 13px; color: var(--gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;}
+        .trans-date { font-size: 11px; color: #C7C7CC; margin-top: 2px; }
+        
+        .trans-right { display: flex; align-items: center; margin-left: 10px; }
+        .trans-amount { font-weight: 700; font-size: 17px; white-space: nowrap; }
+        .amount-red { color: var(--red); }
+        .amount-green { color: var(--green); }
+        
+        .delete-btn { color: #D1D1D6; border: none; background: none; font-size: 22px; margin-left: 12px; padding: 0 5px; cursor: pointer; }
+        .delete-btn:hover { color: var(--red); }
+
+        /* --- FOOTER FISSO (Firma + Navigazione) --- */
+        .fixed-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid #C6C6C8;
+            padding-top: 10px;
+            padding-bottom: env(safe-area-inset-bottom, 15px);
+            z-index: 1000;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .credits-small {
+            font-size: 11px;
+            color: #8E8E93; /* Colore più scuro per visibilità */
+            font-weight: 500;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .month-scroll-container {
+            display: flex;
+            overflow-x: auto;
+            width: 100%;
+            gap: 8px;
+            padding-left: 15px;
+            padding-right: 15px;
+            padding-bottom: 10px;
+            /* Hide scrollbar */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            box-sizing: border-box;
+        }
+        .month-scroll-container::-webkit-scrollbar { display: none; }
+
+        .month-pill {
+            background: #E5E5EA;
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .month-pill.active {
+            background: var(--text);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="balance-card">
+        <div class="balance-label">Saldo (<span id="period-label">Mese Corrente</span>)</div>
+        <div class="balance-amount" id="total-balance">€ 0,00</div>
+        <div class="balance-details">
+            <div class="detail-item">
+                <span style="color: var(--gray); font-size:12px;">Entrate</span>
+                <span class="income-text" id="total-income">€ 0,00</span>
+            </div>
+            <div class="detail-item">
+                <span style="color: var(--gray); font-size:12px;">Uscite</span>
+                <span class="expense-text" id="total-expense">€ 0,00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-title">Analisi Spese</div>
+        <div style="height: 200px; position: relative;">
+            <canvas id="expensesChart"></canvas>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <div class="type-toggle">
+            <button class="toggle-btn active-expense" id="btn-expense" onclick="setType('expense')">Uscita</button>
+            <button class="toggle-btn" id="btn-income" onclick="setType('income')">Entrata</button>
+        </div>
+
+        <select id="category"></select>
+        <input type="number" id="amount" placeholder="Importo (€)" inputmode="decimal" step="0.01">
+        <input type="text" id="note" placeholder="Nota (opzionale, es. Cena fuori)">
+        <input type="date" id="date">
+        <button id="add-btn" class="btn-red" onclick="addTransaction()">Aggiungi Spesa</button>
+    </div>
+
+    <h3 class="section-title">Movimenti</h3>
+    <div id="transaction-list"></div>
+
+    <div class="fixed-footer">
+        <div class="credits-small">Sito creato da Domenico Zungri</div>
+        <div class="month-scroll-container" id="month-nav">
+            </div>
+    </div>
+
+    <script>
+        // --- CONFIGURAZIONE ---
+        const categories = {
+            expense: [
+                { id: 'groceries', name: 'Spesa & Alimenti', icon: '🛒' },
+                { id: 'dining', name: 'Ristoranti & Bar', icon: '🍽️' },
+                { id: 'transport', name: 'Trasporti', icon: '🚌' },
+                { id: 'car', name: 'Auto & Moto', icon: '🚗' },
+                { id: 'home', name: 'Casa & Bollette', icon: '🏠' },
+                { id: 'shopping', name: 'Shopping & Vestiti', icon: '🛍️' },
+                { id: 'health', name: 'Farmacia & Salute', icon: '⚕️' },
+                { id: 'fun', name: 'Svago & Sport', icon: '🎉' },
+                { id: 'travel', name: 'Viaggi & Hotel', icon: '✈️' },
+                { id: 'tech', name: 'Elettronica', icon: '📱' },
+                { id: 'pets', name: 'Animali', icon: '🐾' },
+                { id: 'education', name: 'Istruzione & Libri', icon: '📚' },
+                { id: 'gifts', name: 'Regali fatti', icon: '🎁' },
+                { id: 'other', name: 'Altro', icon: '📝' }
+            ],
+            income: [
+                { id: 'salary', name: 'Stipendio', icon: '💰' },
+                { id: 'refund', name: 'Rimborsi', icon: '↩️' },
+                { id: 'invest', name: 'Investimenti', icon: '📈' },
+                { id: 'gift_in', name: 'Regali ricevuti', icon: '🎁' },
+                { id: 'extra', name: 'Extra', icon: '💎' }
+            ]
+        };
+
+        let currentType = 'expense';
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let myChart = null;
+        
+        const today = new Date();
+        let currentFilter = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+        // --- START ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('date').valueAsDate = new Date();
+            updateCategorySelect();
+            updateUI();
+        });
+
+        // --- FILTER LOGIC ---
+        function setFilter(filterVal) {
+            currentFilter = filterVal;
+            updateUI();
+        }
+
+        // --- CORE UI ---
+        function setType(type) {
+            currentType = type;
+            document.getElementById('btn-expense').className = type === 'expense' ? 'toggle-btn active-expense' : 'toggle-btn';
+            document.getElementById('btn-income').className = type === 'income' ? 'toggle-btn active-income' : 'toggle-btn';
+            const btn = document.getElementById('add-btn');
+            btn.textContent = type === 'expense' ? 'Aggiungi Spesa' : 'Aggiungi Entrata';
+            btn.className = type === 'expense' ? 'btn-red' : 'btn-green';
+            updateCategorySelect();
+        }
+
+        function updateCategorySelect() {
+            const select = document.getElementById('category');
+            select.innerHTML = '';
+            categories[currentType].forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.text = `${cat.icon}  ${cat.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        function addTransaction() {
+            const amountVal = parseFloat(document.getElementById('amount').value);
+            const catId = document.getElementById('category').value;
+            const dateVal = document.getElementById('date').value;
+            const noteVal = document.getElementById('note').value.trim();
+
+            if (!amountVal || amountVal <= 0) { alert("Inserisci un importo valido"); return; }
+
+            const catObj = categories[currentType].find(c => c.id === catId);
+
+            const transaction = {
+                id: Date.now(),
+                type: currentType,
+                amount: amountVal,
+                category: catObj.name,
+                icon: catObj.icon,
+                date: dateVal,
+                note: noteVal
+            };
+
+            transactions.unshift(transaction);
+            
+            if (dateVal.substring(0,7) !== currentFilter && currentFilter !== 'ALL') {
+                currentFilter = dateVal.substring(0,7);
+            }
+
+            saveAndRender();
+            document.getElementById('amount').value = '';
+            document.getElementById('note').value = '';
+        }
+
+        function deleteTransaction(id) {
+            if(confirm("Eliminare?")) {
+                transactions = transactions.filter(t => t.id !== id);
+                saveAndRender();
+            }
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            updateUI();
+        }
+
+        function formatMoney(amount) {
+            return '€ ' + amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // --- RENDER PRINCIPALE ---
+        function updateUI() {
+            renderMonthNav();
+
+            let filteredTransactions = transactions;
+            if (currentFilter !== 'ALL') {
+                filteredTransactions = transactions.filter(t => t.date.startsWith(currentFilter));
+            }
+
+            const list = document.getElementById('transaction-list');
+            list.innerHTML = '';
+            let income = 0, expense = 0, chartData = {};
+
+            if (filteredTransactions.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:30px; color:var(--gray); font-size:14px;">Nessun movimento in questo periodo.</div>`;
+            }
+
+            filteredTransactions.forEach(t => {
+                if (t.type === 'income') income += t.amount;
+                else {
+                    expense += t.amount;
+                    chartData[t.category] = (chartData[t.category] || 0) + t.amount;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'transaction-item';
+                const amountClass = t.type === 'income' ? 'amount-green' : 'amount-red';
+                const sign = t.type === 'income' ? '+' : '-';
+                const noteHtml = t.note ? `<div class="trans-note">${t.note}</div>` : '';
+                
+                div.innerHTML = `
+                    <div class="trans-left">
+                        <div class="trans-icon">${t.icon}</div>
+                        <div class="trans-info">
+                            <div class="trans-cat">${t.category}</div>
+                            ${noteHtml}
+                            <div class="trans-date">${t.date.split('-').reverse().join('/')}</div>
+                        </div>
+                    </div>
+                    <div class="trans-right">
+                        <div class="trans-amount ${amountClass}">${sign} ${formatMoney(t.amount)}</div>
+                        <button class="delete-btn" onclick="deleteTransaction(${t.id})">✕</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            document.getElementById('total-income').textContent = formatMoney(income);
+            document.getElementById('total-expense').textContent = formatMoney(expense);
+            document.getElementById('total-balance').textContent = formatMoney(income - expense);
+            
+            if(currentFilter === 'ALL') document.getElementById('period-label').textContent = "Tutto";
+            else {
+                const [y, m] = currentFilter.split('-');
+                const monthName = new Date(y, m-1).toLocaleString('it-IT', { month: 'long' });
+                document.getElementById('period-label').textContent = monthName + ' ' + y;
+            }
+
+            renderChart(chartData);
+        }
+
+        // --- GESTIONE BARRA MESI ---
+        function renderMonthNav() {
+            // L'elemento nav è ora il container dei pulsanti all'interno del fixed-footer
+            const nav = document.getElementById('month-nav'); 
+            nav.innerHTML = '';
+
+            let months = new Set();
+            const todayStr = new Date().toISOString().substring(0, 7);
+            months.add(todayStr);
+            transactions.forEach(t => months.add(t.date.substring(0, 7)));
+            let sortedMonths = Array.from(months).sort().reverse();
+
+            const allBtn = document.createElement('button');
+            allBtn.className = `month-pill ${currentFilter === 'ALL' ? 'active' : ''}`;
+            allBtn.textContent = 'Tutto';
+            allBtn.onclick = () => setFilter('ALL');
+            nav.appendChild(allBtn);
+
+            sortedMonths.forEach(m => {
+                const [y, mon] = m.split('-');
+                const dateObj = new Date(y, mon - 1);
+                const label = dateObj.toLocaleString('it-IT', { month: 'short', year: 'numeric' });
+                const finalLabel = label.charAt(0).toUpperCase() + label.slice(1);
+
+                const btn = document.createElement('button');
+                btn.className = `month-pill ${currentFilter === m ? 'active' : ''}`;
+                btn.textContent = finalLabel;
+                btn.onclick = () => setFilter(m);
+                nav.appendChild(btn);
+            });
+        }
+
+        function renderChart(dataObj) {
+            const ctx = document.getElementById('expensesChart').getContext('2d');
+            const labels = Object.keys(dataObj);
+            const data = Object.values(dataObj);
+
+            if (myChart) myChart.destroy();
+
+            const colors = [
+                '#FF3B30', '#FF9500', '#FFCC00', '#4CD964', '#5AC8FA', 
+                '#007AFF', '#5856D6', '#FF2D55', '#AF52DE', '#8E8E93', '#A2845E'
+            ];
+
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            position: 'right', 
+                            labels: { boxWidth: 12, font: { size: 11 }, padding: 10 } 
+                        }
+                    },
+                    layout: { padding: { left: 0, right: 20, top: 0, bottom: 0 } },
+                    cutout: '70%'
+                }
+            });
+        }
+    </script>
+</body>
+</html>
